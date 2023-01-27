@@ -1,21 +1,28 @@
 /** 
-	HTTP Headers - https://www.paulhempshall.com/io/http-headers/
-	Copyright (C) 2016-2021, Paul Hempshall. All rights reserved.
+  HTTP Headers - https://www.paulhempshall.com/io/http-headers/
+  Copyright (C) 2016-2021, Paul Hempshall. All rights reserved.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
 	
-	No redistribution without prior written consent.
+  No redistribution without prior written consent.
  */
 
 'use strict';
 
-chrome.tabs.query({active: true, currentWindow: true}, function(tab) {
-  var results = document.getElementById('results'),
-      headers = chrome.extension.getBackgroundPage().headers[tab[0].id];
+var context;
+var results;
+var headers;
+var cookieStr = '';
 
-  document.body.classList.add(chrome.extension.getBackgroundPage().currentSettings.o_theme);
+chrome.tabs.query({ active: true, currentWindow: true }, function (tab) {
+  context = chrome.extension.getBackgroundPage();
+  results = document.getElementById('results'),
+  headers = context.headers[tab[0].id];
+  cookieStr = '';
+
+  document.body.classList.add(context.currentSettings.o_theme);
 
   if (headers === undefined) {
     printError();
@@ -24,42 +31,60 @@ chrome.tabs.query({active: true, currentWindow: true}, function(tab) {
     printResults();
   }
 
-  function sanitize (data) {
+  function sanitize(data) {
     data = data.replace(/</g, "&lt;");
     data = data.replace(/>/g, "&gt;");
     return data;
   }
 
-  function clearResults () {
+  function clearResults() {
     results.innerHTML = '';
   }
 
-  function printError () {
+  function printError() {
     var error = "Error: could not get http headers, please try refreshing the page.";
 
     clearResults();
     results.innerHTML += "<p class=\"error-text\">" + error + "</p>"
   }
 
-  function printResults () {
+  function printResults() {
     clearResults();
 
     // print request
-    headers['request']['requestHeaders'].sort(function(a,b) {return (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0);});
+    headers['request']['requestHeaders'].sort(function (a, b) { return (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0); });
     printHeading('request');
     printKeys('request');
 
     // print response
-    headers['response']['responseHeaders'].sort(function(a,b) {return (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0);});
+    headers['response']['responseHeaders'].sort(function (a, b) { return (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0); });
     printHeading('response');
     printKeys('response');
 
-    
-    function calcTime () {
+    printHeading('cookie');
+    printCookie();
+
+    function printCookie() {
+      chrome.tabs.getSelected(null, function (tab) {
+        var { hostname } = new URL(tab.url);
+        chrome.cookies.getAll({}, function (cookies) {
+          const list = cookies.filter(c => hostname.toLowerCase().indexOf(c.domain.toLowerCase()) >= 0);
+          list.sort(function (a, b) {
+            return a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+          });
+         cookieStr = list.map(l => {
+            results.innerHTML += "<p><b>" + sanitize(l.name) + ":</b> " + sanitize(l.value) + "</p>";
+            return `${l.name} = ${l.value};`;
+          }).join(' ');
+        });
+      });
+    }
+
+    function calcTime() {
       return ((headers['response'].timeStamp - headers['request'].timeStamp) / 1000).toFixed(4);
     }
 
-    function printHeading (key) {
+    function printHeading(key) {
       var t = key[0].toUpperCase() + key.substring(1);
 
       if (key === 'response') {
@@ -70,7 +95,7 @@ chrome.tabs.query({active: true, currentWindow: true}, function(tab) {
       }
     }
 
-    function printStatus (obj) {
+    function printStatus(obj) {
       if (obj.statusLine) {
         results.innerHTML += "<p><b>" + sanitize(obj.statusLine) + "</b></p>";
       }
@@ -79,11 +104,11 @@ chrome.tabs.query({active: true, currentWindow: true}, function(tab) {
       }
     }
 
-    function printHeader (obj) {
+    function printHeader(obj) {
       results.innerHTML += "<p><b>" + sanitize(obj.name) + ":</b> " + sanitize(obj.value) + "</p>";
     }
 
-    function printKeys (key) {
+    function printKeys(key) {
       for (var i = 0; i < headers[key][key + 'Headers'].length; i++) {
         if (i === 0) {
           printStatus(headers[key]);
@@ -95,11 +120,17 @@ chrome.tabs.query({active: true, currentWindow: true}, function(tab) {
 });
 
 
-document.getElementById('live_headers_link').addEventListener('click', launchLiveHeaders, false);
+// document.getElementById('live_headers_link').addEventListener('click', launchLiveHeaders, false);
+document.getElementById('live_headers_link').addEventListener('click', copyCookie, false);
 
-function launchLiveHeaders (e) {
+async function copyCookie(e) {
   e.preventDefault();
-  
+  await navigator.clipboard.writeText(cookieStr);
+  window.close();
+}
+
+function launchLiveHeaders(e) {
+  e.preventDefault();
   chrome.tabs.create(
     {
       url: chrome.extension.getURL("headersLive.html")

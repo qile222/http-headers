@@ -1,26 +1,24 @@
 {
-  "manifest_version": 2,
+  "manifest_version": 3,
   "author": "Paul Hempshall",
-
   "name": "HTTP Headers",
   "version": "1.0.5",
   "description": "Displays the current tab’s HTTP request and response or a Live HTTP Headers tab showing a stream of requests and responses.",
-
   "background": {
     "page": "headersBackground.html"
   },
-
   "browser_action": {
     "default_title": "HTTP Headers",
     "default_popup": "headersPopup.html"
-  },  
-
+  },
   "options_ui": {
     "page": "headersOptions.html",
     "open_in_tab": true
   },
-
-  "icons": { 
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "icons": {
     "16": "icon-16.png",
     "32": "icon-32.png",
     "48": "icon-48.png",
@@ -28,13 +26,13 @@
     "128": "icon-128.png",
     "256": "icon-256.png"
   },
-
   "permissions": [
-      "webRequest", 
-      "webRequestBlocking", 
-      "http://*/*",
-      "https://*/*",
-      "tabs", 
-      "storage"
-   ]
+    "webRequest",
+    "webRequestBlocking",
+    "http://*/*",
+    "https://*/*",
+    "tabs",
+    "storage",
+    "cookies"
+  ]
 }
