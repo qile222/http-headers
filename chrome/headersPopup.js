@@ -11,114 +11,112 @@
 
 'use strict';
 
-var context;
 var results;
 var headers;
 var cookieStr = '';
 
 chrome.tabs.query({ active: true, currentWindow: true }, function (tab) {
-  context = chrome.extension.getBackgroundPage();
-  results = document.getElementById('results'),
-  headers = context.headers[tab[0].id];
-  cookieStr = '';
+  chrome.runtime.sendMessage({ val1: 1, val2: 2 }, function ({ headers: h, currentSettings }) {
+    results = document.getElementById('results');
+    headers = h[tab[0].id];
+    cookieStr = '';
 
-  document.body.classList.add(context.currentSettings.o_theme);
+    document.body.classList.add(currentSettings.o_theme);
 
-  if (headers === undefined) {
-    printError();
-  }
-  else {
-    printResults();
-  }
+    if (headers === undefined) {
+      printError();
+    }
+    else {
+      printResults();
+    }
 
-  function sanitize(data) {
-    data = data.replace(/</g, "&lt;");
-    data = data.replace(/>/g, "&gt;");
-    return data;
-  }
+    function sanitize(data) {
+      data = data.replace(/</g, "&lt;");
+      data = data.replace(/>/g, "&gt;");
+      return data;
+    }
 
-  function clearResults() {
-    results.innerHTML = '';
-  }
+    function clearResults() {
+      results.innerHTML = '';
+    }
 
-  function printError() {
-    var error = "Error: could not get http headers, please try refreshing the page.";
+    function printError() {
+      var error = "Error: could not get http headers, please try refreshing the page.";
 
-    clearResults();
-    results.innerHTML += "<p class=\"error-text\">" + error + "</p>"
-  }
+      clearResults();
+      results.innerHTML += "<p class=\"error-text\">" + error + "</p>"
+    }
 
-  function printResults() {
-    clearResults();
+    function printResults() {
+      clearResults();
 
-    // print request
-    headers['request']['requestHeaders'].sort(function (a, b) { return (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0); });
-    printHeading('request');
-    printKeys('request');
+      // print request
+      headers['request']['requestHeaders'].sort(function (a, b) { return (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0); });
+      printHeading('request');
+      printKeys('request');
 
-    // print response
-    headers['response']['responseHeaders'].sort(function (a, b) { return (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0); });
-    printHeading('response');
-    printKeys('response');
+      // print response
+      headers['response']['responseHeaders'].sort(function (a, b) { return (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0); });
+      printHeading('response');
+      printKeys('response');
 
-    printHeading('cookie');
-    printCookie();
+      printHeading('cookie');
+      printCookie();
 
-    function printCookie() {
-      chrome.tabs.getSelected(null, function (tab) {
-        var { hostname } = new URL(tab.url);
+      function printCookie() {
+        var { hostname } = new URL(tab[0].url);
         chrome.cookies.getAll({}, function (cookies) {
           const list = cookies.filter(c => hostname.toLowerCase().indexOf(c.domain.toLowerCase()) >= 0);
           list.sort(function (a, b) {
             return a.name.toLowerCase().localeCompare(b.name.toLowerCase())
           });
-         cookieStr = list.map(l => {
+          cookieStr = list.map(l => {
             results.innerHTML += "<p><b>" + sanitize(l.name) + ":</b> " + sanitize(l.value) + "</p>";
             return `${l.name} = ${l.value};`;
           }).join(' ');
         });
-      });
-    }
-
-    function calcTime() {
-      return ((headers['response'].timeStamp - headers['request'].timeStamp) / 1000).toFixed(4);
-    }
-
-    function printHeading(key) {
-      var t = key[0].toUpperCase() + key.substring(1);
-
-      if (key === 'response') {
-        results.innerHTML += "<h2>" + t + " <small>(in " + calcTime() + "s)</small></h2>";
       }
-      else {
-        results.innerHTML += "<h2>" + t + "</h2>";
-      }
-    }
 
-    function printStatus(obj) {
-      if (obj.statusLine) {
-        results.innerHTML += "<p><b>" + sanitize(obj.statusLine) + "</b></p>";
+      function calcTime() {
+        return ((headers['response'].timeStamp - headers['request'].timeStamp) / 1000).toFixed(4);
       }
-      else {
-        results.innerHTML += "<p><b>" + sanitize(obj.method) + " " + sanitize(obj.url) + "</b></p>";
-      }
-    }
 
-    function printHeader(obj) {
-      results.innerHTML += "<p><b>" + sanitize(obj.name) + ":</b> " + sanitize(obj.value) + "</p>";
-    }
+      function printHeading(key) {
+        var t = key[0].toUpperCase() + key.substring(1);
 
-    function printKeys(key) {
-      for (var i = 0; i < headers[key][key + 'Headers'].length; i++) {
-        if (i === 0) {
-          printStatus(headers[key]);
+        if (key === 'response') {
+          results.innerHTML += "<h2>" + t + " <small>(in " + calcTime() + "s)</small></h2>";
         }
-        printHeader(headers[key][key + 'Headers'][i]);
+        else {
+          results.innerHTML += "<h2>" + t + "</h2>";
+        }
+      }
+
+      function printStatus(obj) {
+        if (obj.statusLine) {
+          results.innerHTML += "<p><b>" + sanitize(obj.statusLine) + "</b></p>";
+        }
+        else {
+          results.innerHTML += "<p><b>" + sanitize(obj.method) + " " + sanitize(obj.url) + "</b></p>";
+        }
+      }
+
+      function printHeader(obj) {
+        results.innerHTML += "<p><b>" + sanitize(obj.name) + ":</b> " + sanitize(obj.value) + "</p>";
+      }
+
+      function printKeys(key) {
+        for (var i = 0; i < headers[key][key + 'Headers'].length; i++) {
+          if (i === 0) {
+            printStatus(headers[key]);
+          }
+          printHeader(headers[key][key + 'Headers'][i]);
+        }
       }
     }
-  }
-});
+  });
 
+});
 
 // document.getElementById('live_headers_link').addEventListener('click', launchLiveHeaders, false);
 document.getElementById('live_headers_link').addEventListener('click', copyCookie, false);

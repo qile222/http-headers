@@ -53,3 +53,7 @@ function get_options() {
  	);
 }
 get_options();
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+	sendResponse({ currentSettings, headers });
+});
